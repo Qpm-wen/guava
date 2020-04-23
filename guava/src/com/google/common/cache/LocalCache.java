@@ -264,6 +264,7 @@ class LocalCache<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> 
 
     int initialCapacity = Math.min(builder.getInitialCapacity(), MAXIMUM_CAPACITY);
     if (evictsBySize() && !customWeigher()) {
+      // 假如容量被限定，则从 initialCapacity 和 maxWeight 中选择
       initialCapacity = (int) Math.min(initialCapacity, maxWeight);
     }
 
@@ -2028,19 +2029,25 @@ class LocalCache<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> 
           ReferenceEntry<K, V> e = getEntry(key, hash);
           if (e != null) {
             long now = map.ticker.read();
+            // 检查是否过期、被回收、或正在加载，则返回null
             V value = getLiveValue(e, now);
             if (value != null) {
+              // 记录访问信息，写入最近常用队列
               recordRead(e, now);
               statsCounter.recordHits(1);
+              // 如果命中，则考虑是否需要刷新，取得新值。Guava 自动刷新机制。
+              // 如果考虑二级缓存时，本地缓存可以用来做一级缓存，Redis做二级缓存。
+              // 一级缓存的失效时间可以更短一点，二级缓存失效时，Guava可以临时返回已给Null，并通知Redis重新加载，这样有效防止缓存雪崩和缓存穿透
               return scheduleRefresh(e, key, hash, value, now, loader);
             }
+            // 如果是正在加载，则阻塞等待加载完成
             ValueReference<K, V> valueReference = e.getValueReference();
             if (valueReference.isLoading()) {
               return waitForLoadingValue(e, key, valueReference);
             }
           }
         }
-
+        // 以上为无锁访问，如果没有结果，则在下面加锁加载
         // at this point e is either null or expired;
         return lockedGetOrLoad(key, hash, loader);
       } catch (ExecutionException ee) {
@@ -2713,6 +2720,7 @@ class LocalCache<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> 
       }
 
       if (map.isExpired(entry, now)) {
+        // 检查时间是否过期
         tryExpireEntries(now);
         return null;
       }
@@ -3947,7 +3955,9 @@ class LocalCache<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> 
   }
 
   V get(K key, CacheLoader<? super K, V> loader) throws ExecutionException {
+    // 先调用reHash方法，扰动一下
     int hash = hash(checkNotNull(key));
+    // 通过Hash值定位到segment
     return segmentFor(hash).get(key, hash, loader);
   }
 
