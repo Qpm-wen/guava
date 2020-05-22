@@ -1,0 +1,29 @@
+@startuml
+
+interface Lock {
+    lock()
+    upLock()
+}
+interface Serializable
+
+class ReentrantLock
+class Segment {
+    //
+    int count;
+    long totalWeight;
+    int modCount;
+    int threshold;
+    ReferenceEntry[] table;
+}
+
+class ReferenceEntry {
+    // 引用
+}
+
+
+ReentrantLock .up.|> Lock
+ReentrantLock .up.|> Serializable
+Segment -up-|> ReentrantLock
+ReferenceEntry "16:1" -left-* Segment
+
+@enduml

@@ -31,6 +31,8 @@ public enum RemovalCause {
    * The entry was manually removed by the user. This can result from the user invoking {@link
    * Cache#invalidate}, {@link Cache#invalidateAll(Iterable)}, {@link Cache#invalidateAll()}, {@link
    * Map#remove}, {@link ConcurrentMap#remove}, or {@link Iterator#remove}.
+   *
+   * 用户手动移出
    */
   EXPLICIT {
     @Override
@@ -44,6 +46,8 @@ public enum RemovalCause {
    * result from the user invoking {@link Cache#put}, {@link LoadingCache#refresh}, {@link Map#put},
    * {@link Map#putAll}, {@link ConcurrentMap#replace(Object, Object)}, or {@link
    * ConcurrentMap#replace(Object, Object, Object)}.
+   *
+   * 用户手动替换
    */
   REPLACED {
     @Override
@@ -56,6 +60,8 @@ public enum RemovalCause {
    * The entry was removed automatically because its key or value was garbage-collected. This can
    * occur when using {@link CacheBuilder#weakKeys}, {@link CacheBuilder#weakValues}, or {@link
    * CacheBuilder#softValues}.
+   *
+   * 因为 GC 原因， 软引用会被清理
    */
   COLLECTED {
     @Override
@@ -67,6 +73,8 @@ public enum RemovalCause {
   /**
    * The entry's expiration timestamp has passed. This can occur when using {@link
    * CacheBuilder#expireAfterWrite} or {@link CacheBuilder#expireAfterAccess}.
+   *
+   * 因为过期时间到，所以需要清理
    */
   EXPIRED {
     @Override
@@ -78,6 +86,8 @@ public enum RemovalCause {
   /**
    * The entry was evicted due to size constraints. This can occur when using {@link
    * CacheBuilder#maximumSize} or {@link CacheBuilder#maximumWeight}.
+   *
+   * 因为 容量 清理
    */
   SIZE {
     @Override

@@ -2059,6 +2059,7 @@ class LocalCache<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> 
         }
         throw ee;
       } finally {
+        // 统计读取数据，假如达到阈值，就执行一次清理
         postReadCleanup();
       }
     }
@@ -2086,10 +2087,22 @@ class LocalCache<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> 
       }
     }
 
+    /**
+     * Segment 上锁，并且尝试加载数据
+     *
+     * @param key
+     * @param hash
+     * @param loader
+     * @return
+     * @throws ExecutionException
+     */
     V lockedGetOrLoad(K key, int hash, CacheLoader<? super K, V> loader) throws ExecutionException {
       ReferenceEntry<K, V> e;
       ValueReference<K, V> valueReference = null;
       LoadingValueReference<K, V> loadingValueReference = null;
+
+      // 此处会上锁并进行加载，但加载过程并不需要上锁，上锁只是判断是否决定上锁
+      // ，决定后，把对象设置一个loading状态，然后释放锁去加载数据
       boolean createNewEntry = true;
 
       lock();
@@ -2101,15 +2114,18 @@ class LocalCache<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> 
         int newCount = this.count - 1;
         AtomicReferenceArray<ReferenceEntry<K, V>> table = this.table;
         int index = hash & (table.length() - 1);
+        // 通过以上的 hash 值，选定一个槽位
         ReferenceEntry<K, V> first = table.get(index);
 
         for (e = first; e != null; e = e.getNext()) {
+          // 遍历这个槽位的链表
           K entryKey = e.getKey();
           if (e.getHash() == hash
               && entryKey != null
               && map.keyEquivalence.equivalent(key, entryKey)) {
             valueReference = e.getValueReference();
             if (valueReference.isLoading()) {
+              // 预防在并发过程中，有其他线程先执行了加载操作，并处于 loading 过程
               createNewEntry = false;
             } else {
               V value = valueReference.get();
@@ -2671,6 +2687,12 @@ class LocalCache<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> 
 
     // Specialized implementations of map methods
 
+    /**
+     * 根据 hash 和 key 值获取 Entry
+     * @param key
+     * @param hash
+     * @return
+     */
     @Nullable
     ReferenceEntry<K, V> getEntry(Object key, int hash) {
       for (ReferenceEntry<K, V> e = getFirst(hash); e != null; e = e.getNext()) {
@@ -3281,6 +3303,7 @@ class LocalCache<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> 
 
     /** Removes an entry whose key has been garbage collected. */
     boolean reclaimKey(ReferenceEntry<K, V> entry, int hash) {
+      // 实现 LRU 算法的位置
       lock();
       try {
         int newCount = count - 1;
@@ -3391,6 +3414,14 @@ class LocalCache<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> 
       }
     }
 
+    /**
+     *
+     *
+     * @param entry
+     * @param hash
+     * @param cause
+     * @return
+     */
     @VisibleForTesting
     @GuardedBy("this")
     boolean removeEntry(ReferenceEntry<K, V> entry, int hash, RemovalCause cause) {
@@ -3453,6 +3484,10 @@ class LocalCache<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> 
       runUnlockedCleanup();
     }
 
+    /**
+     * 尝试执行清理
+     * @param now
+     */
     void runLockedCleanup(long now) {
       if (tryLock()) {
         try {

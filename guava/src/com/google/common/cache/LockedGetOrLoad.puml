@@ -1,0 +1,15 @@
+@startuml
+
+(*) --> "Lock"
+--> "preWirteCleanup 执行一次清理"
+--> "根据 hash 值选定一个槽位"
+if "ReferenceEntry 正在加载?"
+--> "unLock1"
+--> [Yes] "waitForLoadingValue"
+--> (*)
+else
+--> [No] "设置加载标记"
+--> "unLock2"
+--> "锁 ReferenceEntry 执行loader加载数据"
+--> (*)
+@enduml

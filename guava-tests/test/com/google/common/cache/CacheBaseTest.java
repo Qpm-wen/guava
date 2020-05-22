@@ -45,7 +45,7 @@ public class CacheBaseTest extends TestCase {
                 });
         cache.getUnchecked(1);
         cache.getUnchecked(1);
-        Thread.sleep(1000);
+        Thread.sleep(1500);
         cache.getUnchecked(1);
         assertEquals(2, count.get());
     }
