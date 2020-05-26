@@ -2578,6 +2578,7 @@ class LocalCache<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> 
      */
     @GuardedBy("this")
     void drainRecencyQueue() {
+      // 清空最近读取队列
       ReferenceEntry<K, V> e;
       while ((e = recencyQueue.poll()) != null) {
         // An entry may be in the recency queue despite it being removed from
@@ -2626,6 +2627,7 @@ class LocalCache<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> 
     @GuardedBy("this")
     void enqueueNotification(
         @Nullable K key, int hash, @Nullable V value, int weight, RemovalCause cause) {
+      // 入队通知某个K-V已经失效
       totalWeight -= weight;
       if (cause.wasEvicted()) {
         statsCounter.recordEviction();
@@ -2874,6 +2876,7 @@ class LocalCache<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> 
     /** Expands the table if possible. */
     @GuardedBy("this")
     void expand() {
+      // 扩容 table
       AtomicReferenceArray<ReferenceEntry<K, V>> oldTable = table;
       int oldCapacity = oldTable.length();
       if (oldCapacity >= MAXIMUM_CAPACITY) {
